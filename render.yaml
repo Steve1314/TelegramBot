@@ -1,0 +1,15 @@
+services:
+  - type: worker
+    name: telegram-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: MAX_FILE_SIZE_MB
+        value: 50
+      - key: DOWNLOAD_DIR
+        value: /tmp/terabox_downloads
+      - key: PORT
+        value: 10000

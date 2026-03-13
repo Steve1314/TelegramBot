@@ -1,6 +1,8 @@
 import os
 import logging
 import asyncio
+import threading
+from flask import Flask
 from telegram import Update, Message
 from telegram.ext import (
     Application,
@@ -22,7 +24,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))  # Telegram bot limit: 50MB
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
+PORT = int(os.getenv("PORT", "10000"))
+
+# ── Health Check Server ──────────────────────────────────────────────────────
+
+health_app = Flask(__name__)
+
+@health_app.route('/')
+def health_check():
+    return "OK", 200
+
+def run_health_server():
+    health_app.run(host="0.0.0.0", port=PORT)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -159,6 +173,9 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+
+    # Start health check server in a daemon thread
+    threading.Thread(target=run_health_server, daemon=True).start()
 
     logger.info("Bot is running…")
     app.run_polling(drop_pending_updates=True)
