@@ -36,7 +36,11 @@ def health_check():
     return "OK", 200
 
 def run_health_server():
-    health_app.run(host="0.0.0.0", port=PORT)
+    logger.info(f"🚀 Health check server starting on port {PORT}...")
+    try:
+        health_app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
+    except Exception as e:
+        logger.error(f"❌ Health check server failed to start: {e}")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -164,9 +168,10 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-# ── Entry point ───────────────────────────────────────────────────────────────
-
 async def main():
+    # Start health check server IMMEDIATELY to satisfy Render's port scan
+    threading.Thread(target=run_health_server, daemon=True).start()
+
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN is not set. Check your .env file.")
 
@@ -177,10 +182,6 @@ async def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
-
-    # Start health check server in a daemon thread
-    # Using a thread for Flask is fine as it's separate from the bot's event loop
-    threading.Thread(target=run_health_server, daemon=True).start()
 
     logger.info("Bot is starting…")
 
