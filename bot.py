@@ -164,22 +164,40 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
-def main():
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+async def main():
     if not BOT_TOKEN:
         raise ValueError("BOT_TOKEN is not set. Check your .env file.")
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    # Build the application
+    application = Application.builder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+    # Add handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
     # Start health check server in a daemon thread
+    # Using a thread for Flask is fine as it's separate from the bot's event loop
     threading.Thread(target=run_health_server, daemon=True).start()
 
-    logger.info("Bot is running…")
-    app.run_polling(drop_pending_updates=True)
+    logger.info("Bot is starting…")
+
+    # Use run_polling which handles the loop internally when called via asyncio.run
+    async with application:
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling(drop_pending_updates=True)
+        
+        logger.info("Bot is running…")
+        # Keep the service running
+        while True:
+            await asyncio.sleep(3600)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
